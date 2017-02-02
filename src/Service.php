@@ -47,9 +47,10 @@ class Service extends BaseService
 
     protected function getTags()
     {
+
         return [
             $this->cleanEmptyValues([
-                'name' => $this->service->getName(),
+                'name' => $this->service->getName() ,
                 'description' => $this->service->getDescription()
             ])
         ];
@@ -108,9 +109,12 @@ class Service extends BaseService
 
     protected function getCollectionOperationsData($route)
     {
-        $urlParameters = $this->getURLParametersNotRequired($route);
+        $urlParameters =  $this->getURLParametersNotRequired($route);
+        $urlParameters = $this->getURLQueryParameters() ? array_merge($urlParameters,$this->getURLQueryParameters()) : $urlParameters;
+
         unset($urlParameters[$this->service->routeIdentifierName]);
         $operations = $this->service->operations;
+
         return $this->getOperationsData($operations, $urlParameters);
     }
 
@@ -166,6 +170,30 @@ class Service extends BaseService
         return $templateParameters;
     }
 
+    protected function getURLQueryParameters()
+    {
+        // find all parameters in Swagger naming format
+        //preg_match_all('#{([\w\d_-]+)}#', $route, $parameterMatches);
+        $queryWhitelist = $this->service->getQueryWhitelist();
+        if (count($queryWhitelist) > 0) {
+            $templateQueryParameters = [];
+            foreach ($queryWhitelist as $paramSegmentName) {
+                $templateQueryParameters[$paramSegmentName] = [
+                'in' => 'query',
+                'name' => $paramSegmentName,
+                'description' => 'URL parameter ' . $paramSegmentName,
+                'dataType' => 'string',
+                'required' => false,
+                'minimum' => 0,
+                'maximum' => 1,
+                'defaultValue' => ''
+                ];
+            }
+            return $templateQueryParameters;
+        } else return false;
+
+    }
+
     protected function getPostPatchPutBodyParameter()
     {
         return [
@@ -188,11 +216,16 @@ class Service extends BaseService
         return strtolower($operation->getHttpMethod());
     }
 
+    /*
+    * Added summary
+    */
     protected function getPathOperation(Operation $operation, $parameters)
     {
+
         return $this->cleanEmptyValues([
                 'tags' => [$this->service->getName()],
                 'description' => $operation->getDescription(),
+                'summary' => $operation->getSummary(),
                 'parameters' => $parameters,
                 'produces' => $this->service->getRequestAcceptTypes(),
                 'responses' => $this->getResponsesFromOperation($operation)
